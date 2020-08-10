@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<meta charset="utf-8">
-		<title>Hipismo o jogo</title>
+		<title>Hipismo o jogo</title> 
 		<style>
 			canvas{
 				position:absolute;
@@ -10,149 +10,222 @@
 				bottom: 0px;
 				left: 0px;
 				right: 0px;
-				margin: auto;			}
+				margin: auto;	
+				/* Definindo dentro do style, todas as propriedades do canvas. Como margem, e posição, centralizando ela no Html */		
+			}
 		</style>
 	</head>
 	<body>
 		<script>
 			// Variaveis do jogo
-			var canvas, contexto, ALTURA, LARGURA, frames = 0, maxPulos=2, velocidade=4;
+			var canvas, contexto, ALTURA, LARGURA, frames = 0, maxPulos=2, velocidade=6, estadoAtual,
 
-			chao = {
-				y: 550,
-				altura: 50,
-				cor: "#ffdf70",
+			// Canvas----------------> variavel utilizada pra desenhar as coisas.
+			// Contexto--------------> Esta diretamente ligada ao canvas, definindo o contexto.
+			// Largura e Altura -----> são utilizadas para definir o tamanho da janela do jogo.
+			// Frames ---------------> é utilizado para ser incrementado sempre que passar pelo loop, a cada quadro que for renderizado.
+			// Por exemplo, utilizamos frames para calcular o tempo que vai aparecer um obstaculo novo.
+			// maxPulos -------------> Define a quantidade de pulos que o personagem pode dar de uma só vez.
+			// velocidade -----------> Defini a velocidade a qual os obstaculos andam para a esquerda.
+			// estadoAtual ----------> Define o estado atual do jogo, como se fosse um menu.
 
-				desenha: function(){
-					contexto.fillStyle = this.cor;
-					contexto.fillRect(0, this.y, LARGURA, this.altura);
+			estados = { // Estados do jogo, como se fosse um menu, uma instrução a ser passada.
+				jogar: 0, // Tela de iniciar o jogo
+				jogando: 1, // Estado o qual o jogo está sendo executado, até colidir em um objeto.
+				perdeu: 2 // Tela de você perdeu !
+			},
+
+			chao = { // Criando uma espécie de classe/ objeto, onde tem atributos e métodos do chão.
+
+				y: 550, // canvas tem 600 pixels de altura, então se a altura do chão for 50 pixels, o y tem que começar em 550.
+				altura: 50, // Definindo altura do chão.
+				cor: "#4c8858", // Cor do chão.
+
+				desenha: function(){ // Criando método desenha, para desenhar o chão.
+					contexto.fillStyle = this.cor; // Utilizando a cor deste objeto.
+					contexto.fillRect(0, this.y, LARGURA, this.altura); // Desenhando na tela a partir das referencias.
 				}
 			},
 
-			bloco = {
-				x: 50,
-				y: 0,
-				altura: 50,
-				largura: 50,
-				cor: "#d00c3f",
-				gravidade: 1.5,
-				velocidade: 0,
-				forcaDoPulo: 15,
-				qntPulos:0,
+			bloco = { // Criando o Personagem, seus atributos e métodos.
 
-				atualiza: function(){
-					this.velocidade += this.gravidade;
-					this.y += this.velocidade;
-					if(this.y > chao.y - this.altura){
-						this.y = chao.y - this.altura;
-						this.qntPulos= 0;
+				// Atributos
+				x: 50, // O personagem vai começar 50 pixels a direita, no eixo x.
+				y: 0, // Ele vai começar na altura zero, ou seja, no topo da tela.
+				altura: 40, // Esta é a altura do personagem.
+				largura: 90, // Esta é a largura do personagem.
+				cor: "#741f0b", // Cor do personagem.
+
+				// Metodos
+				gravidade: 1.6, // Aumentando velocidade do corpo com o tempo.
+				velocidade: 0, // Velocidade do personagem, inicialmente valendo zero.
+				forcaDoPulo: 23, // Definindo a força do pulo do personagem.
+				qntPulos:0, // Variavel inicializada em 0, utilizada para contar a quantidade de pulos que o personagem deu.
+
+				atualiza: function(){ // Atualizando o Personagem. Mexendo na velocidade e Y dele.
+					this.velocidade += this.gravidade; // velocidade influenciada pela gravidade.
+					this.y += this.velocidade; // Mudando y do personagem, baseado na velocidade.
+
+					// Isto faz com que o personagem caia do céu. Porém é necessário fazer com que ele não passe do chão.
+
+					if(this.y > chao.y - this.altura && estadoAtual != estados.perdeu){
+						this.y = chao.y - this.altura; // fixando personagem na canvas, acima do chão;
+						this.qntPulos= 0; // quando o personagem cair no chão após o pulo, a quantidade de pulos volta a ser zero.
+						this.velocidade = 0;
 					}
 				},
 
-				pula: function(){
-					if(this.qntPulos < maxPulos){
-						this.velocidade = -this.forcaDoPulo;
-						this.qntPulos ++;
+				pula: function(){ // Criando um metado para o personagem pular.
+					if(this.qntPulos < maxPulos){ // Personagem vai pular somente se a quantidade de pulos que ele deu, é menor que a quantidade de pulos que ele pode dar.
+						this.velocidade = -this.forcaDoPulo; // ele pula
+						this.qntPulos ++; // incrementa a quantidade de pulos que o personagem deu.
 					}
 					
 				},
 
-				desenha: function(){
-					contexto.fillStyle = this.cor;
-					contexto.fillRect(this.x, this.y, this.largura, this.altura);
+				desenha: function(){ // Método desenha
+					contexto.fillStyle = this.cor; // selecionando a cor do personagem.
+					contexto.fillRect(this.x, this.y, this.largura, this.altura); // Desenhando nas referencias citadas no objeto.
 				}
 			},
 
-			obstaculos ={
-				_obs: [],
-				cores: ["#af5519", "#5d2b09"],
-				tempoInsere:0,
+			obstaculos ={ // Criando os obstaculos, seus atributos e métodos.
+				_obs: [], // Vetor com os obstaculos
+				cores: ["#8a6202", "#aa7801"], // Cor dos obstaculos
+				tempoInsere:0, // Tempo levado para inserir um novo obstaculo, começando em zero.
 
-				insere: function(){
+				insere: function(){ // Metodo para inserir um obstaculo.
 					this._obs.push({
-						x: LARGURA,
-						largura: 30 + Math.floor(21 * Math.random()),
-						altura: 30 + Math.floor (120 * Math.random()),
-						cor: this.cores[Math.floor(2 * Math.random())]
+						x: LARGURA, // Os obstaculos irão vir a partir do canto maximo da tela, ou seja, da direita para esquerda. Então o x vai começar a partir do tamanho da largura da tela.
+
+						largura: 15, // Defininindo um numero aleatorio para a largura do obstaculo.
+						altura: 45, // Defininindo um numero aleatorio para a altura do obstaculo.
+						cor: this.cores[Math.floor(2 * Math.random())] // Sorteando uma cor para o obstaculo.
 					});
 
-					this.tempoInsere = 50 + Math.floor(41 * Math.random()); // tempo para aparecer um obstaculo
+					this.tempoInsere = 50 + Math.floor(41 * Math.random()); // Sorteando um tempo para aparecer um obstaculo
 				},
 
 				atualiza: function(){
-					if (this.tempoInsere == 0)
+					if (this.tempoInsere == 0) // Inserir um obstaculo se tempoInsere for igual a zero.
 						this.insere();
 					else
-						this.tempoInsere--;
+						this.tempoInsere--; // Se não for igual a zero, decrementar " isto é feito para dar sensação de tempo".
 
-					for(var i = 0, tam = this._obs.length; i < tam; i++){
-						var obs = this._obs[i];
+					for(var i = 0, tam = this._obs.length; i < tam; i++){ // Rodar vetor de obstaculos. E então decrementar o x de cada obstaculo, fazendo então a sensação de movimento, indo para a esquerda.
+						var obs = this._obs[i]; // selecionando o elemento que o loop esta apontando. Obs será um obstáculo.
 
-						obs.x -= velocidade;
+						obs.x -= velocidade; // Obstaculo vai para esquerda conforme a velocidade.
 
-						if(obs.x <= -obs.largura){
-							this._obs.splice(i, 1);
-							tam--;
-							i--;
+						if (bloco.x < obs.x + obs.largura && bloco.x + bloco.largura >= obs.x && bloco.y + bloco.altura >= chao.y - obs.altura ){
+							estadoAtual = estados.perdeu;
+						}
+
+						else if(obs.x <= -obs.largura){ // Removendo objeto do Vetor quando o X dele encostar na parede esquerda da largura do canvas, ou seja, em x = 0.
+							this._obs.splice(i, 1); // Removendo o elemento.
+							tam--; // corrigindo o vetor.
+							i--; // corrigindo o loop.
 						}
 					}
 				},
 
-				desenha: function(){
-					for (var i = 0, tam = this._obs.length; i < tam; i++){
-						var obs = this._obs[i];
-						contexto.fillStyle = obs.cor;
-						contexto.fillRect(obs.x, chao.y - obs.altura, obs.largura, obs.altura);
+				limpa: function(){
+					this._obs = [];
+				},
+
+				desenha: function(){ // Metodo para desenhar o obstaculo na tela
+					for (var i = 0, tam = this._obs.length; i < tam; i++){ // Loop para rodar todos os obstaculos que estão no vetor "_obs"
+						var obs = this._obs[i]; // Desenhando o obstaculo que esta no vetor.
+						contexto.fillStyle = obs.cor; // Inserindo cor no obstaculo
+						contexto.fillRect(obs.x, chao.y - obs.altura, obs.largura, obs.altura); // Desenhando o obstaculo na posição definida.
 					}
 				}
 			};
 
 
 			
-			function clique(event){
-				//alert("clicou");
-				bloco.pula();
+			function clique(event){ // Toda vez que a pessoa clicar, algo vai acontecer.
+				if (estadoAtual == estados.jogando){
+					bloco.pula(); // Se clicar, o personagem pula.
+				}
+				else if (estadoAtual == estados.jogar){
+					estadoAtual = estados.jogando;
+				}
+
+				else if (estadoAtual == estados.perdeu && bloco.y >= 3 * ALTURA){
+					estadoAtual = estados.jogar;
+					bloco.velocidade = 0;
+					bloco.y = 0;
+				}
+				
 			}
 
-			function main(){
-				ALTURA = window.innerHeight;
-				LARGURA = window.innerWidth;
+			function main(){ // Função principal, é chamada para inicializar o jogo.
 
-				if(LARGURA >= 500){
-					LARGURA = 600;
+				ALTURA = window.innerHeight; // Devolvendo a altura da janela do usuário
+				LARGURA = window.innerWidth; // Devolvendo a largura da janela do usuário
+
+				if(LARGURA >= 500){ // Se a largura for maior que 500, forçar para um tamanho fixo.
+					LARGURA = 600; 
 					ALTURA = 600;
 				}
 
-				canvas= document.createElement("canvas");
-				canvas.width = LARGURA;
-				canvas.height = ALTURA;
-				canvas.style.border = "1px solid #000"
+				canvas= document.createElement("canvas"); // Criando documento canvas
+				canvas.width = LARGURA; // Largura da janela canvas
+				canvas.height = ALTURA; // Altura da janela canvas
+				canvas.style.border = "1px solid #000" // Uma borda preta pro canvas
 
-				contexto = canvas.getContext("2d");
-				document.body.appendChild(canvas);
-				document.addEventListener("mousedown", clique);
+				contexto = canvas.getContext("2d"); // definindo o contexto como 2d.
+				document.body.appendChild(canvas); // Adicionando variavel canvas no corpo do Html.
+				document.addEventListener("mousedown", clique); // verificando se a pessoa clicou, chamando a função clique.
 
-				roda();
+				estadoAtual = estados.jogar; // Primeira tela do jogo, com um botão para jogar.
+
+				roda(); // Chamando a função roda, o loop do jogo.
 			}
-			function roda(){
-				atualiza();
-				desenha();
 
-				window.requestAnimationFrame(roda);
+			function roda(){ // Função onde vai ficar o loop, fica atualizando e desenhando na canvas.
+				atualiza(); // Chamando a função atualiza, para atualizar o jogo.
+				desenha(); // Desenhando os Frames, porque vamos atualizar e desenhar a cada loop.
+
+				window.requestAnimationFrame(roda); // Chamar a função roda, direto, ficar rodando sempre. Atualiza e desenha.
 			}
-			function atualiza(){
-				frames++;
 
-				bloco.atualiza();
-				obstaculos.atualiza();
+			function atualiza(){ // Aqui vai atualizar o status do personagem, e também dos obstaculos.
+				frames++; // Somando frame, atualizando status do Personagem e dos obstaculos.
+
+				bloco.atualiza(); // Atualizando a posição do personagem.
+
+				if (estadoAtual == estados.jogando) {
+					obstaculos.atualiza(); // Atualizando a posição do obstaculo.
+					}
+
+				else if (estadoAtual == estados.perdeu){
+					obstaculos.limpa();
+				}
 			}
-			function desenha(){
-				contexto.fillStyle = "#50beff"; // cor de fundo
-				contexto.fillRect(0, 0, LARGURA, ALTURA);
 
-				chao.desenha();
-				obstaculos.desenha();
-				bloco.desenha();
+			function desenha(){ // A função desenha, desenha o personagem e os obstatulos.
+
+				contexto.fillStyle = "#50beff"; // cor de fundo azul.
+				contexto.fillRect(0, 0, LARGURA, ALTURA); // Pintando o fundo a partir do eixo x = o e eixo y= 0. Até largura e altura na canvas.
+
+				if (estadoAtual == estados.jogar){
+					contexto.fillStyle = "green";
+					contexto.fillRect(LARGURA / 2 - 50, ALTURA / 2 - 50, 100, 100) // Colocando o botão no centro da tela.
+				}
+
+				else if (estadoAtual == estados.perdeu){
+					contexto.fillStyle = "red";
+					contexto.fillRect(LARGURA / 2 - 50, ALTURA / 2 - 50, 100, 100) // Colocando o botão no centro da tela.
+				}
+
+				else if (estadoAtual == estados.jogando){
+					obstaculos.desenha(); // Acessando objeto obstaculos, e chamando o método desenha.
+				}
+
+				chao.desenha(); // Acessando objeto chão, e chamando o método desenha.
+				bloco.desenha(); // Acessando objeto bloco, e chamando o método desenha. De modo a desenhar o personagem.
 			}
 
 			//Inicializa o jogo
